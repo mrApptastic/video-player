@@ -352,47 +352,41 @@
             const overallProgress = document.getElementById('overallProgress');
             const resetProgressBtn = document.getElementById('resetProgressBtn');
             
-            // Episode data - replace with your own video URLs
-            const episodes = [
-                {
-                    id: 1,
-                    title: "Episode 1: The Beginning",
-                    src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-                    duration: "10:00",
-                    thumbnail: ""
-                },
-                {
-                    id: 2,
-                    title: "Episode 2: The Journey",
-                    src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-                    duration: "15:30",
-                    thumbnail: ""
-                },
-                {
-                    id: 3,
-                    title: "Episode 3: The Challenge",
-                    src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-                    duration: "12:45",
-                    thumbnail: ""
-                },
-                {
-                    id: 4,
-                    title: "Episode 4: The Revelation",
-                    src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-                    duration: "18:20",
-                    thumbnail: ""
-                },
-                {
-                    id: 5,
-                    title: "Episode 5: The Finale",
-                    src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-                    duration: "22:10",
-                    thumbnail: ""
-                }
-            ];
+            // Episode data is fetched asynchronously from episodes.json
+            let episodes = [];
+            let isLoadingEpisodes = false;
+            let episodesError = '';
             
             // Current episode
             let currentEpisode = null;
+
+            // Fetch episodes from external JSON before initializing the player
+            async function loadEpisodes() {
+                isLoadingEpisodes = true;
+                renderEpisodeList();
+
+                try {
+                    const response = await fetch('episodes.json', { cache: 'no-cache' });
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    if (!Array.isArray(data)) {
+                        throw new Error('Invalid episodes format');
+                    }
+
+                    episodes = data;
+                    episodesError = '';
+                } catch (error) {
+                    console.error('Failed to load episodes', error);
+                    episodes = [];
+                    episodesError = error.message || 'Unknown error';
+                } finally {
+                    isLoadingEpisodes = false;
+                    renderEpisodeList();
+                }
+            }
             
             // Initialize the player
             function initPlayer() {
@@ -415,6 +409,22 @@
             function renderEpisodeList() {
                 episodeList.innerHTML = '';
                 
+                if (isLoadingEpisodes) {
+                    episodeList.innerHTML = '<li class="episode-item">Loading episodes...</li>';
+                    return;
+                }
+
+                if (episodesError) {
+                    episodeList.innerHTML = `<li class="episode-item">Could not load episodes: ${episodesError}</li>`;
+                    return;
+                }
+
+                if (episodes.length === 0) {
+                    episodeList.innerHTML = '<li class="episode-item">No episodes available.</li>';
+                    updateOverallProgress();
+                    return;
+                }
+
                 episodes.forEach(episode => {
                     const li = document.createElement('li');
                     li.className = 'episode-item';
@@ -712,7 +722,7 @@
             }
             
             // Initialize the player
-            initPlayer();
+            loadEpisodes().then(initPlayer);
         });
     </script>
 </body>
